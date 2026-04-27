@@ -131,13 +131,11 @@ def init_db():
                     password_hash TEXT NOT NULL
                 )
             """)
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM patients")
-            if cursor.fetchone()[0] == 0:
-                logger.info("Base vide, génération de données initiales...")
-                current_user=st.session_state.get("username","admin")
-                generate_fake_data(20,current_user)
-                
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM patients")
+        if cursor.fetchone()[0] == 0:
+            # On passe explicitement un nom pour éviter de toucher à st.session_state
+            generate_fake_data(20, username="Admin_Initial")
             conn.commit()
     except sqlite3.Error as e:
                 logger.error("Erreur init DB: %s", e)
