@@ -4,6 +4,7 @@ import numpy as np
 import plotly.express as px
 import sqlite3 , html , logging ,os , hashlib
 from datetime import datetime, date
+import random
 
 
 logging.basicConfig(level = logging.INFO,format = "%(asctimes)s %(levelname)s %(message)s")
@@ -262,11 +263,10 @@ with st.sidebar:
     df_sidebar = load_data()
     st.caption(f"Total fiches : **{len(df_sidebar)}**")
     st.markdown("---")
-    st.markdown("TP INF232 ")
     st.caption("Secteur : Sante Publique · Cameroun")
     st.markdown("---")
     # FIX: bouton de déconnexion
-    if st.button(" Se déconnecter"):
+    if st.button(" Se deconnecter"):
         st.session_state.authenticated = False
         st.session_state.username = ""
         st.rerun()
@@ -277,12 +277,12 @@ tab1, tab2, tab3, tab4 = st.tabs([
     " Saisie des donnees",
     " Analyse descriptive",
     " Visualisations",
-    " Données brutes"
+    " Donnees brutes"
 ])
 
 # TAB 1 — Formulaire
 with tab1:
-    st.subheader("Fiche de collect epidemiologiaue")
+    st.subheader("Fiche de collect epidemiologique")
     with st.form("form_patient",clear_on_submit=True):
         col1,col2 = st.columns(2)
         with col1:
@@ -363,7 +363,7 @@ with tab2:
         st.markdown("---")
         with st.expander("Filtrer"):
             fc1, fc2, fc3 = st.columns(3)
-            f_region  = fc1.multiselect("Région",  df["region"].unique())
+            f_region  = fc1.multiselect("Region",  df["region"].unique())
             f_maladie = fc2.multiselect("Maladie", df["maladie"].unique())
             f_sexe    = fc3.multiselect("Sexe",    df["sexe"].unique())
 
