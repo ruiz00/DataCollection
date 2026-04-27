@@ -3,15 +3,32 @@ import pandas as pd
 import numpy as np 
 import plotly.express as px
 import sqlite3 , html , logging ,os , hashlib
-from datetime import datetime, date
+from datetime import datetime, date,timedelta
 import random
-def generate_fake_data(n=20):
+def generate_fake_data(n=20, username="Système"):
+    SYMPTOMES_PAR_MALADIE = {
+        "Paludisme":      ["Fièvre", "Frissons", "Maux de tête", "Fatigue", "Vomissements"],
+        "Choléra":        ["Diarrhée", "Vomissements", "Fatigue", "Douleurs abdominales"],
+        "Fièvre typhoïde":["Fièvre", "Maux de tête", "Douleurs abdominales", "Fatigue", "Perte d'appétit"],
+        "Tuberculose":    ["Toux", "Fatigue", "Perte d'appétit", "Dyspnée"],
+        "VIH/SIDA":       ["Fatigue", "Perte d'appétit", "Fièvre", "Éruption cutanée"],
+        "Diabète":        ["Fatigue", "Perte d'appétit", "Dyspnée"],
+        "Hypertension":   ["Maux de tête", "Dyspnée", "Fatigue"],
+        "Pneumonie":      ["Toux", "Fièvre", "Dyspnée", "Douleurs abdominales", "Fatigue"],
+        "Diarrhée aiguë": ["Diarrhée", "Vomissements", "Douleurs abdominales", "Fièvre"],
+        "Méningite":      ["Fièvre", "Maux de tête", "Vomissements", "Frissons"],
+        "Rougeole":       ["Fièvre", "Éruption cutanée", "Toux", "Maux de tête"],
+        "Autre":          ["Fatigue", "Fièvre", "Maux de tête"],
+    }
+    
     regions = ["Centre", "Littoral", "Extrême-Nord", "Nord-Ouest", "Ouest", "Sud", "Est", "Adamaoua", "Nord", "Sud-Ouest"]
     districts = ["Yaoundé Cité Verte", "Douala 4e", "Bafoussam 1er", "Maroua Urbain", "Bamenda Central"]
     formations = ["Hôpital Central", "Hôpital de District", "CSI de Référence", "Clinique de l'Espoir"]
-    maladies = ["Paludisme", "Choléra", "Fièvre Typhoïde", "Grippe Saisonnière", "Diarrhée Aiguë"]
-    sexes = ["M", "F"]
-    issues = ["Guéri", "Sous traitement", "Décès", "Référé"]
+    
+    # On récupère directement la liste des maladies depuis les clés du dictionnaire
+    maladies = list(SYMPTOMES_PAR_MALADIE.keys())
+    sexes = ["Masculin", "Féminin"]
+    issues = ["En traitement", "Guéri", "Décédé", "Transféré", "Abandon"]
     
     conn = sqlite3.connect("datasante.db")
     cursor = conn.cursor()
@@ -22,7 +39,17 @@ def generate_fake_data(n=20):
         
         age = random.randint(1, 85)
         temp = round(random.uniform(36.5, 40.5), 1)
-        poids = random.randint(5, 100)
+        poids = round(random.uniform(5.0, 100.0), 1)
+        
+        # 1. Choisir la maladie en premier
+        maladie_choisie = random.choice(maladies)
+        
+        # 2. Générer les symptômes associés
+        symptomes_possibles = SYMPTOMES_PAR_MALADIE[maladie_choisie]
+        # On choisit aléatoirement entre 1 et le nombre total de symptômes possibles pour cette maladie
+        nb_symptomes_a_choisir = random.randint(1, len(symptomes_possibles))
+        # On sélectionne les symptômes et on les joint par une virgule
+        symptomes_choisis = ", ".join(random.sample(symptomes_possibles, k=nb_symptomes_a_choisir))
         
         # Données du patient
         patient = (
@@ -32,17 +59,17 @@ def generate_fake_data(n=20):
             random.choice(formations),
             age,
             random.choice(sexes),
-            random.choice(maladies),
-            "Fièvre, Céphalées, Douleurs musculaires", # Symptômes types
+            maladie_choisie,
+            symptomes_choisis, # On insère la chaîne dynamique ici
             temp,
             poids,
-            random.randint(110, 140), # Systolique
-            random.randint(70, 90),   # Diastolique
+            random.randint(110, 160), # Systolique
+            random.randint(60, 90),   # Diastolique
             random.choice(["Oui", "Non"]),
             random.choice(issues),
             random.randint(0, 10),    # Durée séjour
             "Saisie automatique de test",
-            "Admin_Test"
+            username
         )
 
         cursor.execute("""
@@ -56,8 +83,7 @@ def generate_fake_data(n=20):
 
     conn.commit()
     conn.close()
-    print(f"{n} patients ont été ajoutés avec succès.")
-
+    print(f"{n} patients ont été ajoutés avec succès par {username}.")
 logging.basicConfig(level = logging.INFO,format = "%(asctimes)s %(levelname)s %(message)s")
 
 logger = logging.getLogger(__name__)
@@ -105,10 +131,20 @@ def init_db():
                     password_hash TEXT NOT NULL
                 )
             """)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM patients")
+            if cursor.fetchone()[0] == 0:
+                logger.info("Base vide, génération de données initiales...")
+                current_user=st.session_state.get("username","admin")
+                generate_fake_data(20,current_user)
+                
             conn.commit()
     except sqlite3.Error as e:
-        logger.error("Erreur init de la base de donnees : %s ", e)
-        st.error("Impossible d'initialiser la base de donnees")
+                logger.error("Erreur init DB: %s", e)
+    #         conn.commit()
+    # except sqlite3.Error as e:
+    #     logger.error("Erreur init de la base de donnees : %s ", e)
+    #     st.error("Impossible d'initialiser la base de donnees")
 
 # Initialiser la DB tout de suite pour que la table 'users' existe avant le login
 init_db()
@@ -273,21 +309,20 @@ def load_data()->pd.DataFrame:
         logger.error("Erreur load_data : %s ",e)
         return pd.DataFrame()
     
-def delete_record(record_id: int )->bool:
+def delete_record(record_id):
     try:
         with get_conn_to_DB() as conn:
-            cur = conn.execute(
-                "SELECT id FROM patients WHERE id=?",(record_id))
-            if cur.fetchone() is None:
-                return False 
-            conn.execute("DELETE FROM patients WHERE id=?",(record_id))
+            cursor = conn.execute("DELETE FROM patients WHERE id = ?", (record_id,))
             conn.commit()
-            logger.warning("DElETE patient id=%d par=%s", record_id, st.session_state.username)
-            return True
+            
+            if cursor.rowcount > 0:
+                return True
+            else:
+                logger.warning(f"Aucune fiche trouvee avec l'ID {record_id}")
+                return False
     except sqlite3.Error as e:
-        logger.error("Erreur delete_record id=%d: %s" , record_id,e)
+        logger.error("Erreur delete_record id=%d: %s", record_id, e)
         return False
-    
 
 def invalidate_cache():
     load_data.clear()
@@ -574,14 +609,16 @@ with tab4:
             )
         with col_del:
             with st.popover("Supprimer une fiche"):
-                del_id = st.number_input("ID de la fiche", min_value=1, step=1)
-                if st.button("Confirmer la suppression", type="primary"):
-                    # FIX: vérification d'existence + bool de retour
-                    if delete_record(int(del_id)):
-                        invalidate_cache()
-                        st.success(f"Fiche {del_id} supprimée.")
-                        st.rerun()
-                    else:
-                        st.error(f"Fiche {del_id} introuvable ou erreur DB.")
+    # On s'assure que c'est un entier
+                id_entree = st.number_input("ID de la fiche", min_value=1, step=1)
+    
+            if st.button("Confirmer la suppression", type="primary"):
+                # Appel de la fonction avec le tuple corrigé
+                if delete_record(int(id_entree)):
+                    st.success(f"Fiche {id_entree} supprimee.")
+                    st.cache_data.clear() # Vider le cache pour voir la modification
+                    st.rerun()
+                else:
+                    st.error("Impossible de supprimer cette fiche (ID inexistant).")
     else:
         st.info("Aucune donnee enregistree.")
