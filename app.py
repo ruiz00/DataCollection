@@ -5,7 +5,7 @@ import plotly.express as px
 import sqlite3 , html , logging ,os , hashlib
 from datetime import datetime, date,timedelta
 import random
-def generate_fake_data(n=20, username="Système"):
+def generate_fake_data(n=20, username="admin"):
     SYMPTOMES_PAR_MALADIE = {
         "Paludisme":      ["Fièvre", "Frissons", "Maux de tête", "Fatigue", "Vomissements"],
         "Choléra":        ["Diarrhée", "Vomissements", "Fatigue", "Douleurs abdominales"],
@@ -131,11 +131,6 @@ def init_db():
                     password_hash TEXT NOT NULL
                 )
             """)
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM patients")
-        if cursor.fetchone()[0] == 0:
-            # On passe explicitement un nom pour éviter de toucher à st.session_state
-            generate_fake_data(20, username="Admin_Initial")
             conn.commit()
     except sqlite3.Error as e:
                 logger.error("Erreur init DB: %s", e)
@@ -209,6 +204,16 @@ if not st.session_state.authenticated:
                     st.session_state.authenticated = True
                     st.session_state.username = username
                     logger.info("Connexion reussie : %s", username)
+                    
+                    # Initialisation intelligente
+                    with get_conn_to_DB() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT COUNT(*) FROM patients")
+                        if cursor.fetchone()[0] == 0:
+                            with st.spinner("Preparation de votre espace de travail..."):
+                                generate_fake_data(n=20, username=st.session_state.username)
+                    
+                    st.success(f"Bienvenue, {username} !")
                     st.rerun()
                 else:
                     st.error("Identifiant ou mot de passe incorrect.")
