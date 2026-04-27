@@ -1,4 +1,4 @@
-# DataSanté CM — TP INF232 EC2
+# DataSanté CAM 
 
 Application de collecte et d'analyse descriptive des données épidémiologiques
 au Cameroun. Développée en Python avec Streamlit.
@@ -16,6 +16,8 @@ au Cameroun. Développée en Python avec Streamlit.
 pip install -r requirements.txt
 streamlit run app.py
 ```
+ 
+gwanulagabryan-nyagha23v2244-datacollection
 
 ## Déploiement Streamlit Cloud
 1. Pousser ce dossier sur GitHub (dépôt public ou privé)
@@ -32,4 +34,4 @@ datasante/
 ```
 
 ## Auteur
-TP INF232 EC2 — Université de Yaoundé
+GWANULAGA BRYAN NYAGHA L2 INOFRMATIQUE Université de Yaoundé I

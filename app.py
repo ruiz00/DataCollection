@@ -5,7 +5,58 @@ import plotly.express as px
 import sqlite3 , html , logging ,os , hashlib
 from datetime import datetime, date
 import random
+def generate_fake_data(n=20):
+    regions = ["Centre", "Littoral", "Extrême-Nord", "Nord-Ouest", "Ouest", "Sud", "Est", "Adamaoua", "Nord", "Sud-Ouest"]
+    districts = ["Yaoundé Cité Verte", "Douala 4e", "Bafoussam 1er", "Maroua Urbain", "Bamenda Central"]
+    formations = ["Hôpital Central", "Hôpital de District", "CSI de Référence", "Clinique de l'Espoir"]
+    maladies = ["Paludisme", "Choléra", "Fièvre Typhoïde", "Grippe Saisonnière", "Diarrhée Aiguë"]
+    sexes = ["M", "F"]
+    issues = ["Guéri", "Sous traitement", "Décès", "Référé"]
+    
+    conn = sqlite3.connect("datasante.db")
+    cursor = conn.cursor()
 
+    for _ in range(n):
+        # Générer une date aléatoire sur les 30 derniers jours
+        date_random = (datetime.now() - timedelta(days=random.randint(0, 30))).strftime("%Y-%m-%d")
+        
+        age = random.randint(1, 85)
+        temp = round(random.uniform(36.5, 40.5), 1)
+        poids = random.randint(5, 100)
+        
+        # Données du patient
+        patient = (
+            date_random,
+            random.choice(regions),
+            random.choice(districts),
+            random.choice(formations),
+            age,
+            random.choice(sexes),
+            random.choice(maladies),
+            "Fièvre, Céphalées, Douleurs musculaires", # Symptômes types
+            temp,
+            poids,
+            random.randint(110, 140), # Systolique
+            random.randint(70, 90),   # Diastolique
+            random.choice(["Oui", "Non"]),
+            random.choice(issues),
+            random.randint(0, 10),    # Durée séjour
+            "Saisie automatique de test",
+            "Admin_Test"
+        )
+
+        cursor.execute("""
+            INSERT INTO patients (
+                date_saisie, region, district, formation_sanitaire, age, sexe, 
+                maladie, symptomes, temperature, poids, tension_systolique, 
+                tension_diastolique, hospitalise, issue, duree_sejour, 
+                observations, saisie_par
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, patient)
+
+    conn.commit()
+    conn.close()
+    print(f"{n} patients ont été ajoutés avec succès.")
 
 logging.basicConfig(level = logging.INFO,format = "%(asctimes)s %(levelname)s %(message)s")
 
@@ -271,6 +322,17 @@ with st.sidebar:
         st.session_state.username = ""
         st.rerun()
     st.caption(f"Connecte : {st.session_state.username}")
+    st.divider()
+    st.subheader("Donnees  de Test")
+    if st.button("Generer 20 fiches de test"):
+        # On appelle la fonction de génération
+        try:
+            generate_fake_data(20) 
+            st.success("20 fiches ajoutees !")
+            # On force le rafraîchissement pour voir les données
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erreur : {e}")
 
 # ─── Onglets 
 tab1, tab2, tab3, tab4 = st.tabs([
